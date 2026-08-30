@@ -194,7 +194,10 @@ try {
   check("Startseite laedt", r.code === 200, "HTTP " + r.code);
   check("Startseite zeigt neuen Titel", r.text.includes("Bierpong Tracker"));
   check("Startseite listet das Testturnier", r.text.includes("Smoke-Test Turnier"));
-  check("kein Duenencamping-Schriftzug mehr", !r.text.includes("Dünencamping"));
+  // Nur der Schriftzug der Seite zaehlt - Turniernamen sind Nutzereingaben
+  // und duerfen alles enthalten.
+  check("kein Duenencamping-Schriftzug mehr", !r.text.includes("Dünencamping Amrum"));
+  check("Loeschen wird angeboten", r.text.includes("löschen"));
 
   /* --- Loeschen --- */
   console.log("\n=== Turnier loeschen ===");
