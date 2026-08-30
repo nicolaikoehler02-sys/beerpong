@@ -174,3 +174,9 @@ function clamp(v: number, min: number, max: number, fallback: number): number {
   if (!Number.isFinite(v)) return fallback;
   return Math.min(max, Math.max(min, Math.round(v)));
 }
+
+/** Loescht ein Turnier endgueltig, samt Teams und allen Spielen. */
+export async function deleteTournamentAction(id: string) {
+  await db.deleteTournament(id);
+  revalidatePath("/");
+}

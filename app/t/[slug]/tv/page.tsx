@@ -48,7 +48,7 @@ export default async function TvSeite({
       <header className="mb-5 flex shrink-0 items-baseline justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-duene">
-            Dünencamping Amrum
+            Nicolais Bierpong Tracker
           </p>
           <h1 className="text-3xl font-bold">{tournament.name}</h1>
         </div>

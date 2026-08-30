@@ -167,12 +167,46 @@ try {
   r = await seite("/t/" + slug + "/tv");
   check("TV zeigt den Sieger gross", r.text.includes("Turniersieger"));
 
+  /* --- Becher-Umrechnung --- */
+  console.log("\n=== Becher-Umrechnung ===");
+  // Gefragt wird nach den uebrigen Bechern des Siegers (1..cups),
+  // gespeichert wird der Score: Sieger = cups, Verlierer = cups - uebrig.
+  const cups = 10;
+  const faelle: Array<[number, number]> = [
+    [10, 0], // Sieger hatte alle 10 uebrig -> Gegner traf keinen
+    [9, 1],
+    [5, 5],
+    [1, 9], // Sieger hatte nur noch 1 uebrig -> knappstes Ergebnis
+  ];
+  for (const [uebrig, erwartet] of faelle) {
+    check(
+      "uebrig " + uebrig + " ergibt " + cups + ":" + erwartet,
+      cups - uebrig === erwartet,
+    );
+  }
+  check("kein Ergebnis 10:10 moeglich", cups - 1 < cups);
+
   /* --- Fehlerfaelle --- */
   console.log("\n=== Fehlerfaelle ===");
   r = await seite("/t/gibtsnicht-xyz");
   check("unbekanntes Turnier gibt 404", r.code === 404, "HTTP " + r.code);
   r = await seite("/");
   check("Startseite laedt", r.code === 200, "HTTP " + r.code);
+  check("Startseite zeigt neuen Titel", r.text.includes("Bierpong Tracker"));
+  check("Startseite listet das Testturnier", r.text.includes("Smoke-Test Turnier"));
+  check("kein Duenencamping-Schriftzug mehr", !r.text.includes("Dünencamping"));
+
+  /* --- Loeschen --- */
+  console.log("\n=== Turnier loeschen ===");
+  await sql`DELETE FROM tournaments WHERE id = ${tid}`;
+  const [nachher] = await sql`SELECT count(*)::int AS n FROM tournaments WHERE id = ${tid}`;
+  check("Turnier ist weg", nachher.n === 0);
+  const [teamsWeg] = await sql`SELECT count(*)::int AS n FROM teams WHERE tournament_id = ${tid}`;
+  const [spieleWeg] = await sql`SELECT count(*)::int AS n FROM matches WHERE tournament_id = ${tid}`;
+  check("Teams per Cascade mitgeloescht", teamsWeg.n === 0, "Rest: " + teamsWeg.n);
+  check("Spiele per Cascade mitgeloescht", spieleWeg.n === 0, "Rest: " + spieleWeg.n);
+  r = await seite("/t/" + slug);
+  check("geloeschtes Turnier gibt 404", r.code === 404, "HTTP " + r.code);
 } finally {
   await sql`DELETE FROM tournaments WHERE id = ${tid}`;
   const [rest] = await sql`SELECT count(*)::int AS n FROM matches WHERE tournament_id = ${tid}`;

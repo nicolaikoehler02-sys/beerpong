@@ -33,7 +33,7 @@ export default async function QrSeite({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
       <p className="text-sm uppercase tracking-[0.3em] text-duene">
-        Dünencamping Amrum
+        Nicolais Bierpong Tracker
       </p>
       <h1 className="mt-2 text-center text-3xl font-bold">{state.tournament.name}</h1>
       <p className="mt-2 text-center text-sand/60">

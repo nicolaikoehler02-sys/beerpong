@@ -6,8 +6,12 @@ import type { Match, Team } from "@/lib/tournament";
 
 /**
  * Ergebniseingabe in zwei Schritten, auf Bedienung mit einer Hand am Handy
- * ausgelegt: erst den Sieger antippen, dann die Becher des Verlierers.
- * Der Sieger hat per Definition die volle Becherzahl.
+ * ausgelegt: erst den Sieger antippen, dann dessen uebrig gebliebene Becher.
+ *
+ * Gefragt wird nach den Bechern, die beim Sieger noch stehen (1 bis cups) -
+ * genau das sieht man am Tischende vor sich. Gespeichert wird daraus der
+ * uebliche Score: der Sieger hat alle gegnerischen Becher getroffen, der
+ * Verlierer entsprechend cups minus uebrige.
  */
 export function ScoreEntry({
   slug,
@@ -31,9 +35,11 @@ export function ScoreEntry({
   const pin = () =>
     typeof window === "undefined" ? null : localStorage.getItem("bierpong-pin");
 
-  const speichern = (restbecher: number) => {
+  /** uebrig = Becher, die beim Sieger noch stehen (1 bis cups). */
+  const speichern = (uebrig: number) => {
+    const verliererScore = cups - uebrig;
     const [a, b] =
-      sieger === "a" ? [cups, restbecher] : [restbecher, cups];
+      sieger === "a" ? [cups, verliererScore] : [verliererScore, cups];
     startTransition(async () => {
       const res = await saveScoreAction(slug, match.id, a, b, pin());
       if (res?.error) setFehler(res.error);
@@ -77,21 +83,22 @@ export function ScoreEntry({
     );
   }
 
-  /* Schritt 2: Becher des Verlierers */
+  /* Schritt 2: uebrige Becher des Siegers */
   if (sieger) {
-    const verlierer = sieger === "a" ? teamB : teamA;
+    const gewinner = sieger === "a" ? teamA : teamB;
     return (
       <div>
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="text-sand/70">
-            Wie viele Becher hatte <b className="text-sand-hell">{verlierer.name}</b>?
+            Wie viele Becher hatte <b className="text-sand-hell">{gewinner.name}</b> noch
+            übrig?
           </span>
           <button onClick={() => setSieger(null)} className="text-sand/50 hover:text-sand">
             zurück
           </button>
         </div>
         <div className="grid grid-cols-5 gap-1.5">
-          {Array.from({ length: cups }, (_, i) => i).map((n) => (
+          {Array.from({ length: cups }, (_, i) => i + 1).map((n) => (
             <button
               key={n}
               onClick={() => speichern(n)}

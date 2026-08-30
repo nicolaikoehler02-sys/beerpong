@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bierpong Dünencamping Amrum",
-  description: "Turnierbaum, Tabelle und Live-Ergebnisse vom Dünencamping Amrum",
+  title: "Nicolais Bierpong Tracker",
+  description: "Turnierbaum, Tabelle und Live-Ergebnisse",
 };
 
 export const viewport: Viewport = {

@@ -42,7 +42,7 @@ export default async function TurnierSeite({
       <header className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.2em] text-duene">
-            Dünencamping Amrum
+            Nicolais Bierpong Tracker
           </p>
           <h1 className="truncate text-2xl font-bold sm:text-3xl">{tournament.name}</h1>
         </div>

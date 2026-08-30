@@ -200,3 +200,8 @@ function toMatch(r: Row): Match {
     table: r.table_no as number | null,
   };
 }
+
+/** Loescht ein Turnier samt Teams und Spielen (per ON DELETE CASCADE). */
+export async function deleteTournament(id: string): Promise<void> {
+  await sql`DELETE FROM tournaments WHERE id = ${id}`;
+}
