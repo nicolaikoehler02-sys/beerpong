@@ -48,6 +48,12 @@ export default async function TurnierSeite({
         </div>
         <nav className="flex shrink-0 gap-2 text-sm">
           <Link
+            href={"/t/" + slug + "/qr"}
+            className="rounded-lg border border-kante px-3 py-1.5 hover:border-duene transition"
+          >
+            QR
+          </Link>
+          <Link
             href={"/t/" + slug + "/tv"}
             className="rounded-lg border border-kante px-3 py-1.5 hover:border-duene transition"
           >
