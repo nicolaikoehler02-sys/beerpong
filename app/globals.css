@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
+/*
+ * Farbwelt Duenencamping Amrum bei Nacht:
+ * tiefes Nordseeblau als Grund, Sand und Duenengras als Akzente,
+ * Bernstein fuer alles was gerade laeuft.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --nacht: #0a1d28;
+  --tiefe: #102c3b;
+  --karte: #16384a;
+  --kante: #23506a;
+  --sand: #e4d2ae;
+  --sand-hell: #f2ebdb;
+  --duene: #8fa76b;
+  --duene-hell: #a9c085;
+  --bernstein: #f0a742;
+  --brandung: #5fb3c4;
+  --rot: #d9634f;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-nacht: var(--nacht);
+  --color-tiefe: var(--tiefe);
+  --color-karte: var(--karte);
+  --color-kante: var(--kante);
+  --color-sand: var(--sand);
+  --color-sand-hell: var(--sand-hell);
+  --color-duene: var(--duene);
+  --color-duene-hell: var(--duene-hell);
+  --color-bernstein: var(--bernstein);
+  --color-brandung: var(--brandung);
+  --color-rot: var(--rot);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--nacht);
+  color: var(--sand-hell);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  /* Duenenhorizont: zwei weiche Lichter von unten, wie Lagerfeuer am Strand */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% 100%, rgba(143, 167, 107, 0.13), transparent),
+    radial-gradient(ellipse 70% 45% at 85% 100%, rgba(95, 179, 196, 0.11), transparent);
+  background-attachment: fixed;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Zahlen in Tabellen und Scores sollen sauber untereinander stehen */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dezenter Puls fuer laufende Spiele - nicht zu aufdringlich auf dem Fernseher */
+@keyframes puls {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.puls {
+  animation: puls 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .puls { animation: none; }
 }
