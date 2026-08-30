@@ -304,3 +304,156 @@ export function assignTables(matches: Match[], tableCount: number): Match[] {
       : m,
   );
 }
+
+/* ---------- Auswertungen fuer die Anzeige ---------- */
+
+export interface Fortschritt {
+  gespielt: number;
+  gesamt: number;
+  offen: number;
+  /** Geschaetzte Restdauer in Minuten, null solange zu wenig Daten vorliegen. */
+  restMinuten: number | null;
+  /** Durchschnitt pro Spiel in Minuten, ueber alle Tische hinweg gerechnet. */
+  schnittMinuten: number | null;
+}
+
+/**
+ * Fortschritt und Restzeitschaetzung.
+ *
+ * Die Schaetzung kalibriert sich selbst: sie misst die real vergangene Zeit
+ * zwischen dem ersten und dem letzten beendeten Spiel und teilt sie durch
+ * deren Anzahl. Damit ist die Parallelitaet mehrerer Tische bereits
+ * eingerechnet, ohne sie modellieren zu muessen.
+ */
+export function computeFortschritt(
+  matches: Array<Match & { updatedAt?: string | Date | null }>,
+): Fortschritt {
+  const gesamt = matches.length;
+  const fertig = matches.filter((m) => m.status === "done");
+  const gespielt = fertig.length;
+  const offen = gesamt - gespielt;
+
+  const zeiten = fertig
+    .map((m) => (m.updatedAt ? new Date(m.updatedAt).getTime() : NaN))
+    .filter((t) => Number.isFinite(t))
+    .sort((a, b) => a - b);
+
+  // Erst ab drei beendeten Spielen ist der Schnitt einigermassen belastbar.
+  if (zeiten.length < 3 || offen === 0) {
+    return { gespielt, gesamt, offen, restMinuten: null, schnittMinuten: null };
+  }
+
+  const spanneMin = (zeiten[zeiten.length - 1] - zeiten[0]) / 60000;
+  const schnitt = spanneMin / (zeiten.length - 1);
+  if (!Number.isFinite(schnitt) || schnitt <= 0) {
+    return { gespielt, gesamt, offen, restMinuten: null, schnittMinuten: null };
+  }
+
+  return {
+    gespielt,
+    gesamt,
+    offen,
+    restMinuten: Math.round(schnitt * offen),
+    schnittMinuten: Math.round(schnitt * 10) / 10,
+  };
+}
+
+export interface Rekord {
+  titel: string;
+  wert: string;
+  detail: string;
+}
+
+/** Rekorde des Abends, rein aus den vorhandenen Ergebnissen abgeleitet. */
+export function computeRekorde(teams: Team[], matches: Match[]): Rekord[] {
+  const namen = new Map(teams.map((t) => [t.id, t.name]));
+  const fertig = matches.filter(
+    (m) => m.status === "done" && m.scoreA !== null && m.scoreB !== null,
+  );
+  if (fertig.length === 0) return [];
+
+  const rekorde: Rekord[] = [];
+
+  // Hoechster Sieg: groesste Becherdifferenz
+  const deutlich = [...fertig].sort(
+    (a, b) =>
+      Math.abs(b.scoreA! - b.scoreB!) - Math.abs(a.scoreA! - a.scoreB!),
+  )[0];
+  const dSieger = deutlich.scoreA! > deutlich.scoreB! ? deutlich.teamA : deutlich.teamB;
+  const dVerlierer = dSieger === deutlich.teamA ? deutlich.teamB : deutlich.teamA;
+  rekorde.push({
+    titel: "Deutlichster Sieg",
+    wert: Math.max(deutlich.scoreA!, deutlich.scoreB!) + ":" + Math.min(deutlich.scoreA!, deutlich.scoreB!),
+    detail: (namen.get(dSieger ?? "") ?? "?") + " gegen " + (namen.get(dVerlierer ?? "") ?? "?"),
+  });
+
+  // Knappstes Spiel: kleinste Differenz
+  const knapp = [...fertig].sort(
+    (a, b) =>
+      Math.abs(a.scoreA! - a.scoreB!) - Math.abs(b.scoreA! - b.scoreB!),
+  )[0];
+  const kSieger = knapp.scoreA! > knapp.scoreB! ? knapp.teamA : knapp.teamB;
+  const kVerlierer = kSieger === knapp.teamA ? knapp.teamB : knapp.teamA;
+  rekorde.push({
+    titel: "Knappstes Spiel",
+    wert: Math.max(knapp.scoreA!, knapp.scoreB!) + ":" + Math.min(knapp.scoreA!, knapp.scoreB!),
+    detail: (namen.get(kSieger ?? "") ?? "?") + " gegen " + (namen.get(kVerlierer ?? "") ?? "?"),
+  });
+
+  // Meiste getroffene Becher ueber alle Spiele
+  const becher = new Map<string, number>();
+  for (const m of fertig) {
+    if (m.teamA) becher.set(m.teamA, (becher.get(m.teamA) ?? 0) + m.scoreA!);
+    if (m.teamB) becher.set(m.teamB, (becher.get(m.teamB) ?? 0) + m.scoreB!);
+  }
+  const beste = [...becher.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (beste) {
+    rekorde.push({
+      titel: "Meiste Becher",
+      wert: String(beste[1]),
+      detail: namen.get(beste[0]) ?? "?",
+    });
+  }
+
+  // Laengste Siegesserie in chronologischer Reihenfolge der Spiele
+  const serien = new Map<string, number>();
+  const laufend = new Map<string, number>();
+  for (const m of fertig) {
+    const sieger = m.scoreA! > m.scoreB! ? m.teamA : m.teamB;
+    const verlierer = sieger === m.teamA ? m.teamB : m.teamA;
+    if (sieger) {
+      const neu = (laufend.get(sieger) ?? 0) + 1;
+      laufend.set(sieger, neu);
+      serien.set(sieger, Math.max(serien.get(sieger) ?? 0, neu));
+    }
+    if (verlierer) laufend.set(verlierer, 0);
+  }
+  const serie = [...serien.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (serie && serie[1] > 1) {
+    rekorde.push({
+      titel: "Längste Siegesserie",
+      wert: serie[1] + " Siege",
+      detail: namen.get(serie[0]) ?? "?",
+    });
+  }
+
+  return rekorde;
+}
+
+/** Welche Tische sind frei und welche Teams stehen gerade schon an einem. */
+export function tischLage(
+  matches: Match[],
+  tableCount: number,
+): { freieTische: number[]; blockierteTeams: string[] } {
+  const laufend = matches.filter((m) => m.status === "running");
+  const belegt = new Set(laufend.map((m) => m.table));
+
+  const freieTische: number[] = [];
+  for (let i = 1; i <= tableCount; i++) if (!belegt.has(i)) freieTische.push(i);
+
+  const blockierteTeams = laufend
+    .flatMap((m) => [m.teamA, m.teamB])
+    .filter((x): x is string => x !== null);
+
+  return { freieTische, blockierteTeams };
+}

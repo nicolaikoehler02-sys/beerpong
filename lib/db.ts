@@ -14,10 +14,13 @@ export interface Tournament {
   hasPin: boolean;
 }
 
+/** Match samt Zeitstempel - Grundlage der Restzeitschaetzung. */
+export type MatchMitZeit = Match & { updatedAt: string | Date | null };
+
 export interface TournamentState {
   tournament: Tournament;
   teams: Team[];
-  matches: Match[];
+  matches: MatchMitZeit[];
 }
 
 /* ---------- Lesen ---------- */
@@ -39,7 +42,7 @@ export async function getState(slug: string): Promise<TournamentState | null> {
     sql`SELECT id, name, player1, player2 FROM teams
         WHERE tournament_id = ${t.id} ORDER BY seed, created_at`,
     sql`SELECT id, phase, round, position, label, team_a, team_b,
-               score_a, score_b, status, table_no
+               score_a, score_b, status, table_no, updated_at
         FROM matches WHERE tournament_id = ${t.id}
         ORDER BY phase DESC, round, position`,
   ]);
@@ -185,7 +188,7 @@ function toTournament(r: Row): Tournament {
   };
 }
 
-function toMatch(r: Row): Match {
+function toMatch(r: Row): MatchMitZeit {
   return {
     id: r.id as string,
     phase: r.phase as Phase,
@@ -198,6 +201,7 @@ function toMatch(r: Row): Match {
     scoreB: r.score_b as number | null,
     status: r.status as MatchStatus,
     table: r.table_no as number | null,
+    updatedAt: (r.updated_at as string | Date | null) ?? null,
   };
 }
 

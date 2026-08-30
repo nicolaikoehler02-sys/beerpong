@@ -4,6 +4,9 @@ import {
   generateKnockout,
   advanceKnockout,
   assignTables,
+  computeFortschritt,
+  computeRekorde,
+  tischLage,
   type Team,
   type Match,
 } from "../lib/tournament.ts";
@@ -110,6 +113,53 @@ const assigned9 = assignTables(rr, 9);
 check("nie mehr Spiele als Teams erlauben",
   assigned9.filter((m) => m.status === "running").length === 3,
   "ist: " + assigned9.filter((m) => m.status === "running").length);
+
+console.log("\n=== Rekorde ===");
+const rekMatches: Match[] = [
+  { ...rr[0], teamA: "t1", teamB: "t2", status: "done", scoreA: 10, scoreB: 0 },
+  { ...rr[1], teamA: "t3", teamB: "t4", status: "done", scoreA: 9, scoreB: 10 },
+  { ...rr[2], teamA: "t1", teamB: "t5", status: "done", scoreA: 10, scoreB: 7 },
+  { ...rr[3], teamA: "t1", teamB: "t6", status: "done", scoreA: 10, scoreB: 3 },
+];
+const rek = computeRekorde(teams, rekMatches);
+const finde = (t: string) => rek.find((r) => r.titel === t);
+check("deutlichster Sieg ist 10:0", finde("Deutlichster Sieg")?.wert === "10:0",
+  String(finde("Deutlichster Sieg")?.wert));
+check("knappstes Spiel ist 10:9", finde("Knappstes Spiel")?.wert === "10:9",
+  String(finde("Knappstes Spiel")?.wert));
+check("meiste Becher: t1 mit 30", finde("Meiste Becher")?.wert === "30",
+  String(finde("Meiste Becher")?.wert) + " von " + String(finde("Meiste Becher")?.detail));
+check("laengste Serie: 3 Siege", finde("Längste Siegesserie")?.wert === "3 Siege",
+  String(finde("Längste Siegesserie")?.wert));
+check("ohne Ergebnisse keine Rekorde", computeRekorde(teams, rr).length === 0);
+
+console.log("\n=== Fortschritt und Restzeit ===");
+const t0 = Date.now();
+const mitZeit = rr.map((m, i) => ({
+  ...m,
+  status: (i < 5 ? "done" : "pending") as Match["status"],
+  scoreA: i < 5 ? 10 : null,
+  scoreB: i < 5 ? 5 : null,
+  // fuenf beendete Spiele im Abstand von je 10 Minuten
+  updatedAt: i < 5 ? new Date(t0 + i * 10 * 60000).toISOString() : null,
+}));
+const f = computeFortschritt(mitZeit);
+check("5 von 15 gespielt", f.gespielt === 5 && f.gesamt === 15, f.gespielt + "/" + f.gesamt);
+check("10 Spiele offen", f.offen === 10, String(f.offen));
+check("Schnitt 10 Min pro Spiel", f.schnittMinuten === 10, String(f.schnittMinuten));
+check("Restzeit 100 Min", f.restMinuten === 100, String(f.restMinuten));
+const leer = computeFortschritt(rr.map((m) => ({ ...m, updatedAt: null })));
+check("ohne Daten keine Schaetzung", leer.restMinuten === null);
+
+console.log("\n=== Tischlage ===");
+const lage = tischLage(assigned, 3);
+check("keine freien Tische bei 3 laufenden", lage.freieTische.length === 0,
+  lage.freieTische.join(","));
+check("6 Teams gebunden", lage.blockierteTeams.length === 6,
+  String(lage.blockierteTeams.length));
+const lage5 = tischLage(assigned, 5);
+check("bei 5 Tischen sind 4 und 5 frei",
+  JSON.stringify(lage5.freieTische) === "[4,5]", lage5.freieTische.join(","));
 
 console.log(ok ? "\nAlle Checks bestanden.\n" : "\nES GIBT FEHLER.\n");
 process.exit(ok ? 0 : 1);

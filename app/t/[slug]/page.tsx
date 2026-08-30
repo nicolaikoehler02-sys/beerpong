@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getState } from "@/lib/db";
-import { computeTable, type Match, type Team } from "@/lib/tournament";
+import {
+  computeFortschritt,
+  computeRekorde,
+  computeTable,
+  tischLage,
+  type Match,
+  type Team,
+} from "@/lib/tournament";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { ScoreEntry } from "@/components/ScoreEntry";
+import { SpielAnsetzen, SpielZuruecklegen } from "@/components/TischSteuerung";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +36,10 @@ export default async function TurnierSeite({
   const naechste = matches
     .filter((m) => m.status === "pending" && m.teamA && m.teamB)
     .slice(0, 5);
+
+  const fortschritt = computeFortschritt(matches);
+  const rekorde = computeRekorde(teams, matches);
+  const { freieTische, blockierteTeams } = tischLage(matches, tournament.tableCount);
 
   const finale = ko.find((m) => m.round === 2);
   const sieger =
@@ -68,6 +80,39 @@ export default async function TurnierSeite({
         </nav>
       </header>
 
+      {/* Fortschritt */}
+      {fortschritt.gesamt > 0 && (
+        <section className="mb-6">
+          <div className="mb-1.5 flex items-baseline justify-between text-sm">
+            <span className="text-sand/60">
+              <span className="tabular font-semibold text-sand-hell">
+                {fortschritt.gespielt}
+              </span>
+              <span className="tabular"> von {fortschritt.gesamt}</span> Spielen
+            </span>
+            {fortschritt.restMinuten !== null && (
+              <span className="text-sand/50">
+                noch etwa {restText(fortschritt.restMinuten)}
+              </span>
+            )}
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-tiefe">
+            <div
+              className="h-full rounded-full bg-duene transition-all duration-500"
+              style={{
+                width:
+                  Math.round((fortschritt.gespielt / fortschritt.gesamt) * 100) + "%",
+              }}
+            />
+          </div>
+          {fortschritt.schnittMinuten !== null && (
+            <p className="mt-1 text-xs text-sand/35">
+              Schnitt bisher: {fortschritt.schnittMinuten} Min pro Spiel
+            </p>
+          )}
+        </section>
+      )}
+
       {tournament.status === "setup" && (
         <div className="rounded-2xl border border-dashed border-kante px-5 py-10 text-center">
           <p className="text-sand/60">Das Turnier ist noch nicht ausgelost.</p>
@@ -103,11 +148,12 @@ export default async function TurnierSeite({
                 key={m.id}
                 className="rounded-2xl border border-bernstein/50 bg-karte/70 p-4"
               >
-                <div className="mb-3 flex items-center justify-between text-xs">
+                <div className="mb-3 flex items-center justify-between gap-2 text-xs">
                   <span className="rounded-md bg-bernstein/20 px-2 py-0.5 font-semibold text-bernstein">
                     Tisch {m.table}
                   </span>
-                  <span className="text-sand/50">{m.label}</span>
+                  <span className="ml-auto text-sand/50">{m.label}</span>
+                  <SpielZuruecklegen slug={slug} match={m} />
                 </div>
                 <ScoreEntry slug={slug} match={m} teams={teams} cups={tournament.cups} />
               </article>
@@ -194,13 +240,58 @@ export default async function TurnierSeite({
 
       {/* Warteschlange */}
       {naechste.length > 0 && (
-        <section>
+        <section className="mb-8">
           <h2 className="mb-3 text-sm uppercase tracking-wider text-sand/50">
             Als nächstes
           </h2>
           <div className="space-y-2">
             {naechste.map((m) => (
-              <MatchZeile key={m.id} match={m} namen={namen} />
+              <MatchZeile
+                key={m.id}
+                match={m}
+                namen={namen}
+                aktion={
+                  freieTische.length > 0 ? (
+                    <SpielAnsetzen
+                      slug={slug}
+                      match={m}
+                      freieTische={freieTische}
+                      blockierteTeams={blockierteTeams}
+                    />
+                  ) : null
+                }
+              />
+            ))}
+          </div>
+          {freieTische.length > 0 && (
+            <p className="mt-2 text-xs text-sand/40">
+              {freieTische.length === 1
+                ? "Tisch " + freieTische[0] + " ist frei"
+                : "Freie Tische: " + freieTische.join(", ")}{" "}
+              — ein Spiel lässt sich direkt ansetzen, falls ein Team gerade fehlt.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Rekorde */}
+      {rekorde.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm uppercase tracking-wider text-sand/50">
+            Rekorde des Abends
+          </h2>
+          <div className="grid grid-cols-2 gap-2">
+            {rekorde.map((r) => (
+              <div
+                key={r.titel}
+                className="rounded-xl border border-kante bg-karte/40 px-4 py-3"
+              >
+                <div className="text-xs text-sand/40">{r.titel}</div>
+                <div className="tabular mt-0.5 text-xl font-bold text-sand-hell">
+                  {r.wert}
+                </div>
+                <div className="truncate text-xs text-sand/50">{r.detail}</div>
+              </div>
             ))}
           </div>
         </section>
@@ -209,12 +300,22 @@ export default async function TurnierSeite({
   );
 }
 
+/** Wandelt Minuten in eine gut lesbare Angabe wie "1 Std 20 Min". */
+function restText(minuten: number): string {
+  if (minuten < 60) return minuten + " Min";
+  const std = Math.floor(minuten / 60);
+  const rest = minuten % 60;
+  return rest === 0 ? std + " Std" : std + " Std " + rest + " Min";
+}
+
 function MatchZeile({
   match,
   namen,
+  aktion,
 }: {
   match: Match;
   namen: Map<string, Team>;
+  aktion?: React.ReactNode;
 }) {
   const a = match.teamA ? namen.get(match.teamA)?.name : null;
   const b = match.teamB ? namen.get(match.teamB)?.name : null;
@@ -258,7 +359,9 @@ function MatchZeile({
         <div className="puls shrink-0 text-xs font-semibold text-bernstein">
           Tisch {match.table}
         </div>
-      ) : null}
+      ) : (
+        aktion
+      )}
     </div>
   );
 }

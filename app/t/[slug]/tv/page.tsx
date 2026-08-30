@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getState } from "@/lib/db";
-import { computeTable } from "@/lib/tournament";
+import { computeFortschritt, computeRekorde, computeTable } from "@/lib/tournament";
 import { AutoRefresh, WakeLock } from "@/components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,9 @@ export default async function TvSeite({
       ? namen.get(finale.scoreA > finale.scoreB ? finale.teamA! : finale.teamB!)
       : null;
 
-  const gespielt = matches.filter((m) => m.status === "done").length;
+  const fortschritt = computeFortschritt(matches);
+  const rekorde = computeRekorde(teams, matches);
+  const gespielt = fortschritt.gespielt;
 
   return (
     <main className="flex h-screen w-full flex-col overflow-hidden px-8 py-6">
@@ -52,9 +54,16 @@ export default async function TvSeite({
           </p>
           <h1 className="text-3xl font-bold">{tournament.name}</h1>
         </div>
-        <p className="tabular text-sm text-sand/40">
-          {gespielt} von {matches.length} Spielen
-        </p>
+        <div className="text-right">
+          <p className="tabular text-sm text-sand/40">
+            {gespielt} von {matches.length} Spielen
+          </p>
+          {fortschritt.restMinuten !== null && (
+            <p className="tabular text-sm text-duene">
+              noch etwa {restText(fortschritt.restMinuten)}
+            </p>
+          )}
+        </div>
       </header>
 
       {sieger ? (
@@ -67,6 +76,23 @@ export default async function TvSeite({
             {sieger.player1}
             {sieger.player2 ? " & " + sieger.player2 : ""}
           </p>
+
+          {rekorde.length > 0 && (
+            <div className="mt-10 grid grid-cols-4 gap-4">
+              {rekorde.map((rk) => (
+                <div
+                  key={rk.titel}
+                  className="rounded-2xl border border-kante bg-karte/50 px-5 py-4 text-center"
+                >
+                  <div className="text-xs uppercase tracking-wider text-sand/40">
+                    {rk.titel}
+                  </div>
+                  <div className="tabular mt-1 text-2xl font-bold">{rk.wert}</div>
+                  <div className="truncate text-sm text-sand/50">{rk.detail}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-5 gap-6">
@@ -198,4 +224,12 @@ export default async function TvSeite({
       )}
     </main>
   );
+}
+
+/** Wandelt Minuten in eine gut lesbare Angabe wie "1 Std 20 Min". */
+function restText(minuten: number): string {
+  if (minuten < 60) return minuten + " Min";
+  const std = Math.floor(minuten / 60);
+  const rest = minuten % 60;
+  return rest === 0 ? std + " Std" : std + " Std " + rest + " Min";
 }
