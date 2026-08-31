@@ -22,3 +22,17 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
   needed. Always curl https://ai-gateway.vercel.sh/v1/models first; never trust model IDs from memory
 - For durable agent loops or untrusted code: use Workflow (pause/resume/state) + Sandbox; use Vercel MCP for secure infra access
 <!-- VERCEL BEST PRACTICES END -->
+
+## Projektspezifisch: Bierpong Tracker
+
+- **Git-Identität**: Dieses Repo gehört dem privaten Account
+  `nicolaikoehler02-sys`, nicht Hestura. Die lokale git-Config ist entsprechend
+  gesetzt (`git config --local user.email`). Nicht auf die globale Identität
+  zurückfallen — Vercel blockiert sonst den Deploy.
+- **Vor jeder Änderung an der Turnierlogik**: `npm run check` (36 Checks,
+  braucht weder Datenbank noch Netz). Nach dem Deploy `npm run smoke -- <url>`.
+- **Turnierlogik gehört nach `lib/tournament.ts`** und bleibt frei von Imports
+  aus `lib/db.ts` und React. Nur so bleibt sie ohne Datenbank testbar.
+- **Deployment Protection** des Vercel-Projekts muss aus bleiben, sonst ist die
+  Seite für die Gäste nicht erreichbar.
+- Details und offene Punkte stehen in `README.md`.
